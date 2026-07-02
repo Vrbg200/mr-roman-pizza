@@ -23,6 +23,12 @@ export function meetsZoneMinimum(
   items: OrderItemDraft[],
   zoneLabel: string
 ): { meets: boolean; reason?: string } {
+  const COMBO_CATEGORIES = ['combo_roman', 'combo_brothers']
+
+  // Si hay cualquier combo, cumple el mínimo automáticamente
+  const hasCombo = items.some((i) => COMBO_CATEGORIES.includes(i.product.category))
+  if (hasCombo) return { meets: true }
+
   const totalPizzas40 = items
     .filter((i) => i.product.category === 'pizza_40')
     .reduce((acc, i) => acc + i.quantity, 0)
@@ -31,15 +37,20 @@ export function meetsZoneMinimum(
     .filter((i) => i.product.category === 'pizza_premium')
     .reduce((acc, i) => acc + i.quantity, 0)
 
+  const totalSpecialty = items
+    .filter((i) => i.product.category === 'pizza_specialty')
+    .reduce((acc, i) => acc + i.quantity, 0)
+
   const totalWingsRibs = items
     .filter((i) => i.product.category === 'wings_ribs')
     .reduce((acc, i) => acc + i.quantity, 0)
 
   if (zoneLabel === 'A' || zoneLabel === 'B') {
-    if (totalPizzas40 >= 1 || totalWingsRibs >= 1) return { meets: true }
+    if (totalPizzas40 >= 1 || totalPremium >= 1 || totalSpecialty >= 1 || totalWingsRibs >= 1)
+      return { meets: true }
     return {
       meets: false,
-      reason: 'Zona A/B requiere mínimo 1 pizza de 40 o 1 orden de alitas/costillas',
+      reason: 'Zona A/B requiere mínimo 1 pizza o 1 orden de alitas/costillas',
     }
   }
 

@@ -6,17 +6,18 @@ import { useThemeStore } from '@/lib/store/themeStore'
 import { User } from '@/types'
 
 const ROLE_NAV: Record<string, { href: string; label: string }[]> = {
-  owner: [
-    { href: '/owner',            label: 'Dashboard'  },
-    { href: '/owner/orders',     label: 'Pedidos'    },
-    { href: '/owner/inventory',  label: 'Inventario' },
-    { href: '/owner/recipes',    label: 'Recetas'    },
-    { href: '/owner/costs',      label: 'Costos'     },
-    { href: '/owner/menu',       label: 'Menú'       },
-    { href: '/owner/zones',      label: 'Zonas'      },
-    { href: '/owner/reports',    label: 'Reportes'   },
-    { href: '/owner/cash',       label: 'Caja'       },
-  ],
+owner: [
+  { href: '/owner',            label: 'Dashboard'  },
+  { href: '/owner/orders',     label: 'Pedidos'    },
+  { href: '/owner/inventory',  label: 'Inventario' },
+  { href: '/owner/recipes',    label: 'Recetas'    },
+  { href: '/owner/costs',      label: 'Costos'     },
+  { href: '/owner/menu',       label: 'Menú'       },
+  { href: '/owner/zones',      label: 'Zonas'      },
+  { href: '/owner/reports',    label: 'Reportes'   },
+  { href: '/owner/cash',       label: 'Caja'       },
+  { href: '/owner/users',      label: 'Usuarios'   },
+],
   seller: [
     { href: '/seller',         label: 'Nueva orden' },
     { href: '/seller/orders',  label: 'Mis pedidos' },

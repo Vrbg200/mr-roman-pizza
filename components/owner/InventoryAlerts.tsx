@@ -13,6 +13,9 @@ interface IngredientWithLevel {
 export default function InventoryAlerts() {
   const [items, setItems] = useState<IngredientWithLevel[]>([])
   const [loading, setLoading] = useState(true)
+  const [restockId, setRestockId] = useState<string | null>(null)
+  const [restockQty, setRestockQty] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => { fetchInventory() }, [])
 
@@ -42,8 +45,12 @@ export default function InventoryAlerts() {
         if (lastPhysicalIndex !== -1) {
           const lastPhysical = logs[lastPhysicalIndex]
           const afterLogs = logs.slice(0, lastPhysicalIndex)
-          const consumption = afterLogs.filter((l) => l.type === 'consumption_estimated').reduce((acc, l) => acc + l.quantity, 0)
-          const restock = afterLogs.filter((l) => l.type === 'restock').reduce((acc, l) => acc + l.quantity, 0)
+          const consumption = afterLogs
+            .filter((l) => l.type === 'consumption_estimated')
+            .reduce((acc, l) => acc + l.quantity, 0)
+          const restock = afterLogs
+            .filter((l) => l.type === 'restock')
+            .reduce((acc, l) => acc + l.quantity, 0)
           estimated = Math.max(0, lastPhysical.quantity - consumption + restock)
         }
       }
@@ -59,9 +66,14 @@ export default function InventoryAlerts() {
     setLoading(false)
   }
 
-  async function handleRestock(ingredientId: string, qty: number) {
+  async function handleRestock(ingredientId: string) {
+    const qty = parseFloat(restockQty)
+    if (!qty || qty <= 0) return
+
+    setSaving(true)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
+
     await supabase.from('inventory_log').insert({
       ingredient_id: ingredientId,
       registered_by: user!.id,
@@ -69,15 +81,19 @@ export default function InventoryAlerts() {
       type: 'restock',
       notes: 'Recarga manual owner',
     })
+
+    setRestockId(null)
+    setRestockQty('')
+    setSaving(false)
     fetchInventory()
   }
 
   function getLevel(pct: number) {
-    if (pct > 60) return { label: 'Alto', color: 'var(--success)', bg: 'var(--success-bg)' }
-    if (pct > 30) return { label: 'Medio', color: 'var(--info)', bg: 'var(--info-bg)' }
-    if (pct > 10) return { label: 'Bajo', color: 'var(--warning)', bg: 'var(--warning-bg)' }
-    if (pct > 5)  return { label: 'Crítico', color: 'var(--danger)', bg: 'var(--danger-bg)' }
-    return { label: 'Agotado', color: 'var(--danger)', bg: 'var(--danger-bg)' }
+    if (pct > 60) return { label: 'Alto',    color: 'var(--success)', bg: 'var(--success-bg)' }
+    if (pct > 30) return { label: 'Medio',   color: 'var(--info)',    bg: 'var(--info-bg)'    }
+    if (pct > 10) return { label: 'Bajo',    color: 'var(--warning)', bg: 'var(--warning-bg)' }
+    if (pct > 5)  return { label: 'Crítico', color: 'var(--danger)',  bg: 'var(--danger-bg)'  }
+    return             { label: 'Agotado',   color: 'var(--danger)',  bg: 'var(--danger-bg)'  }
   }
 
   const alerts = items.filter((i) => i.pct <= 30)
@@ -93,9 +109,7 @@ export default function InventoryAlerts() {
       gap: 12,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>
-          Inventario
-        </div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>Inventario</div>
         {alerts.length > 0 && (
           <span style={{
             fontSize: 11,
@@ -117,11 +131,20 @@ export default function InventoryAlerts() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {items.map(({ ingredient, estimated, pct }) => {
             const level = getLevel(pct)
+            const isRestocking = restockId === ingredient.id
+
             return (
               <div key={ingredient.id}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: 4,
+                }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{ingredient.name}</span>
+                    <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
+                      {ingredient.name}
+                    </span>
                     <span style={{
                       fontSize: 10,
                       fontWeight: 600,
@@ -141,28 +164,27 @@ export default function InventoryAlerts() {
                     }}>
                       {estimated.toFixed(1)}/{ingredient.optimal_weekly} {ingredient.unit}
                     </span>
-                    {pct <= 30 && (
-                      <button
-                        onClick={() => {
-                          const qty = parseFloat(prompt(`Cantidad a recargar (${ingredient.unit}):`) ?? '0')
-                          if (qty > 0) handleRestock(ingredient.id, qty)
-                        }}
-                        style={{
-                          fontSize: 11,
-                          color: 'var(--primary)',
-                          background: 'transparent',
-                          border: 'none',
-                          cursor: 'pointer',
-                          fontFamily: 'inherit',
-                          padding: 0,
-                        }}
-                      >
-                        + Recarga
-                      </button>
-                    )}
+                    <button
+                      onClick={() => {
+                        setRestockId(isRestocking ? null : ingredient.id)
+                        setRestockQty('')
+                      }}
+                      style={{
+                        fontSize: 11,
+                        color: isRestocking ? 'var(--text-3)' : 'var(--primary)',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        padding: 0,
+                      }}
+                    >
+                      {isRestocking ? 'Cancelar' : '+ Recarga'}
+                    </button>
                   </div>
                 </div>
-                <div style={{ height: 4, background: 'var(--surface-2)', borderRadius: 2 }}>
+
+                <div style={{ height: 4, background: 'var(--surface-2)', borderRadius: 2, marginBottom: isRestocking ? 8 : 0 }}>
                   <div style={{
                     height: 4,
                     borderRadius: 2,
@@ -171,6 +193,46 @@ export default function InventoryAlerts() {
                     transition: 'width 0.3s',
                   }} />
                 </div>
+
+                {isRestocking && (
+                  <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                    <input
+                      type="number"
+                      value={restockQty}
+                      onChange={(e) => setRestockQty(e.target.value)}
+                      placeholder={`Cantidad en ${ingredient.unit}`}
+                      autoFocus
+                      style={{
+                        flex: 1,
+                        padding: '7px 10px',
+                        background: 'var(--surface-2)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 7,
+                        color: 'var(--text-1)',
+                        fontFamily: 'inherit',
+                        fontSize: 12,
+                        outline: 'none',
+                      }}
+                    />
+                    <button
+                      onClick={() => handleRestock(ingredient.id)}
+                      disabled={saving || !restockQty}
+                      style={{
+                        padding: '7px 12px',
+                        background: 'var(--primary)',
+                        border: 'none',
+                        borderRadius: 7,
+                        color: '#fff',
+                        fontFamily: 'inherit',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {saving ? '...' : 'Guardar'}
+                    </button>
+                  </div>
+                )}
               </div>
             )
           })}

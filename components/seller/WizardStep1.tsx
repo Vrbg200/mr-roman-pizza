@@ -6,6 +6,7 @@ import { useOrderStore } from '@/lib/store/orderStore'
 import ClientSearch from './ClientSearch'
 import ClientForm from './ClientForm'
 import AddressSelector from './AddressSelector'
+import ClientHistory from './ClientHistory'
 
 export default function WizardStep1() {
   const { draft, setClient, setAddress, setOrderType, setStep } = useOrderStore()
@@ -51,37 +52,40 @@ export default function WizardStep1() {
             />
           )
         ) : (
-          <div style={{
-            background: 'var(--success-bg)',
-            border: '1px solid var(--success)',
-            borderRadius: 10,
-            padding: '12px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>
-                {draft.client.name}
+          <>
+            <div style={{
+              background: 'var(--success-bg)',
+              border: '1px solid var(--success)',
+              borderRadius: 10,
+              padding: '12px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>
+                  {draft.client.name}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
+                  {draft.client.phone}
+                </div>
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
-                {draft.client.phone}
-              </div>
+              <button
+                onClick={() => { useOrderStore.getState().resetDraft() }}
+                style={{
+                  fontSize: 11,
+                  color: 'var(--text-3)',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Cambiar
+              </button>
             </div>
-            <button
-              onClick={() => { useOrderStore.getState().resetDraft() }}
-              style={{
-                fontSize: 11,
-                color: 'var(--text-3)',
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}
-            >
-              Cambiar
-            </button>
-          </div>
+            <ClientHistory clientId={draft.client.id} />
+          </>
         )}
 
         {/* Tipo de entrega */}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Ingredient, Recipe, EXTRA_PRICES } from '@/types'
+import { Ingredient, EXTRA_PRICES } from '@/types'
 import { OrderExtra } from '@/lib/store/orderStore'
 
 interface Props {
@@ -12,56 +12,59 @@ interface Props {
 }
 
 export default function ExtrasSelector({ productId, currentExtras, onExtrasChange }: Props) {
-  const [eligible, setEligible] = useState<(Recipe & { ingredient: Ingredient })[]>([])
+  const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [inventoryPct, setInventoryPct] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function fetchExtras() {
+    async function fetchIngredients() {
       const supabase = createClient()
 
-      const { data: recipes } = await supabase
-        .from('recipes')
-        .select('*, ingredient:ingredients(*)')
-        .eq('product_id', productId)
-        .eq('is_extra_eligible', true)
+      // Todos los ingredientes activos excepto masa
+      const { data } = await supabase
+        .from('ingredients')
+        .select('*')
+        .eq('active', true)
+        .neq('name', 'Masa')
+        .order('name')
 
-      if (!recipes) { setLoading(false); return }
+      if (!data) { setLoading(false); return }
 
-      const filtered = recipes.filter(
-        (r: any) => r.ingredient?.name !== 'Masa'
-      )
-
+      // Calcular % de inventario por ingrediente
       const pct: Record<string, number> = {}
-      for (const recipe of filtered) {
+      for (const ingredient of data) {
         const { data: logs } = await supabase
           .from('inventory_log')
           .select('quantity, type, created_at')
-          .eq('ingredient_id', recipe.ingredient_id)
+          .eq('ingredient_id', ingredient.id)
           .order('created_at', { ascending: false })
           .limit(50)
 
-        if (!logs || logs.length === 0) { pct[recipe.ingredient_id] = 100; continue }
+        if (!logs || logs.length === 0) { pct[ingredient.id] = 100; continue }
 
         const lastPhysicalIndex = logs.findIndex((l) => l.type === 'physical_count')
-        if (lastPhysicalIndex === -1) { pct[recipe.ingredient_id] = 100; continue }
+        if (lastPhysicalIndex === -1) { pct[ingredient.id] = 100; continue }
 
         const lastPhysical = logs[lastPhysicalIndex]
         const afterLogs = logs.slice(0, lastPhysicalIndex)
-        const consumption = afterLogs.filter((l) => l.type === 'consumption_estimated').reduce((acc, l) => acc + l.quantity, 0)
-        const restock = afterLogs.filter((l) => l.type === 'restock').reduce((acc, l) => acc + l.quantity, 0)
+        const consumption = afterLogs
+          .filter((l) => l.type === 'consumption_estimated')
+          .reduce((acc, l) => acc + l.quantity, 0)
+        const restock = afterLogs
+          .filter((l) => l.type === 'restock')
+          .reduce((acc, l) => acc + l.quantity, 0)
         const estimated = lastPhysical.quantity - consumption + restock
-        pct[recipe.ingredient_id] = recipe.ingredient.optimal_weekly > 0
-          ? Math.max(0, (estimated / recipe.ingredient.optimal_weekly) * 100)
+        pct[ingredient.id] = ingredient.optimal_weekly > 0
+          ? Math.max(0, (estimated / ingredient.optimal_weekly) * 100)
           : 100
       }
 
-      setEligible(filtered as (Recipe & { ingredient: Ingredient })[])
+      setIngredients(data)
       setInventoryPct(pct)
       setLoading(false)
     }
-    fetchExtras()
-  }, [productId])
+    fetchIngredients()
+  }, [])
 
   function toggleExtra(ingredient: Ingredient) {
     const exists = currentExtras.find((e) => e.ingredient.id === ingredient.id)
@@ -75,7 +78,7 @@ export default function ExtrasSelector({ productId, currentExtras, onExtrasChang
   }
 
   if (loading) return <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Cargando extras...</div>
-  if (eligible.length === 0) return null
+  if (ingredients.length === 0) return null
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -83,16 +86,16 @@ export default function ExtrasSelector({ productId, currentExtras, onExtrasChang
         Extras disponibles
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        {eligible.map((recipe) => {
-          const pct = inventoryPct[recipe.ingredient_id] ?? 100
+        {ingredients.map((ingredient) => {
+          const pct = inventoryPct[ingredient.id] ?? 100
           const disabled = pct <= 5
-          const isSelected = currentExtras.some((e) => e.ingredient.id === recipe.ingredient_id)
-          const price = EXTRA_PRICES[recipe.ingredient.name] ?? 10
+          const isSelected = currentExtras.some((e) => e.ingredient.id === ingredient.id)
+          const price = EXTRA_PRICES[ingredient.name] ?? 10
 
           return (
             <button
-              key={recipe.ingredient_id}
-              onClick={() => !disabled && toggleExtra(recipe.ingredient)}
+              key={ingredient.id}
+              onClick={() => !disabled && toggleExtra(ingredient)}
               disabled={disabled}
               style={{
                 padding: '5px 12px',
@@ -119,7 +122,7 @@ export default function ExtrasSelector({ productId, currentExtras, onExtrasChang
                 opacity: disabled ? 0.4 : 1,
               }}
             >
-              {recipe.ingredient.name}
+              {ingredient.name}
               {!disabled && ` +Q${price}`}
               {disabled && ' (agotado)'}
             </button>

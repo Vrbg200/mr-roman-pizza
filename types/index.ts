@@ -60,7 +60,7 @@ export interface ClientAddress {
   address: string
   sector: string
   zone_id: string | null
-  default: boolean
+  is_default: boolean
   zone?: Zone
 }
 
@@ -157,6 +157,7 @@ export interface Order {
   total: number
   payment_method: PaymentMethod
   pizzas_completed: number
+  order_number: number | null
   confirmed_at: string
   in_oven_at: string | null
   edit_deadline: string
@@ -206,24 +207,24 @@ export interface CashSession {
   closed_at: string | null
 }
 
-// Extras con precios reales del menú
+// Precios reales de extras según menú
 export const EXTRA_PRICES: Record<string, number> = {
-  'Queso Mozzarella': 10,
-  'Pepperoni':        15,
-  'Jamón':            15,
-  'Bolitas de Carne': 15,
+  'Queso Mozzarella':   10,
+  'Pepperoni':          15,
+  'Jamón':              15,
+  'Bolitas de Carne':   15,
   'Salchicha Italiana': 15,
-  'Tocino':           20,
-  'Cebolla':           8,
-  'Aceitunas Negras':  8,
-  'Champiñones':      15,
-  'Pimientos':        10,
-  'Piña':             19,
-  'Jalapeños':        10,
-  'Jalapeños Mitad':   5,
-  'Salsa Tomate':      5,
-  'Salsa Alfredo':    10,
-  'Salsa Cheddar':     5,
+  'Tocino':             20,
+  'Cebolla':             8,
+  'Aceitunas Negras':    8,
+  'Champiñones':        15,
+  'Pimientos':          10,
+  'Piña':               19,
+  'Jalapeños':          10,
+  'Jalapeños Mitad':     5,
+  'Salsa Tomate':        5,
+  'Salsa Alfredo':      10,
+  'Salsa Cheddar':       5,
 }
 
 export const CATEGORY_LABELS: Record<ProductCategory, string> = {
